@@ -139,6 +139,7 @@ module Squirrel
     def paginate_result_set set, conditions
       limit  = conditions.delete(:limit)
       offset = conditions.delete(:offset)
+      conditions.delete(:order) if conditions.has_key?(:order)
 
       class << set
         attr_reader :pages
@@ -427,6 +428,7 @@ module Squirrel
     # * < : A simple less-than comparison.
     # * <= : Less-than or equal-to.
     # * contains? : Like =~, except automatically surrounds the operand in %s, which =~ does not do.
+    # * icontains? : Like contains? but using ILIKE, to ignore case
     # * nil? : Works exactly like "column == nil", but in a nicer syntax, which is what Squirrel is all about.
     class Condition
       attr_reader :name, :operator, :operand
@@ -448,6 +450,12 @@ module Squirrel
 
       def contains? val #:nodoc:
         @operator = :contains
+        @operand = val
+        self
+      end
+
+      def icontains? val #:nodoc:
+        @operator = :icontains
         @operand = val
         self
       end
@@ -502,7 +510,8 @@ module Squirrel
           when nil       then    [ "IS",      "NULL",            [] ]
           else                   [ "=",       arg_format,        values ]
           end
-        when :contains   then    [ "LIKE",    arg_format,        values.map{|v| "%#{v}%" } ]
+        when :contains   then    [ "LIKE",    arg_format,        values.map{ |v| "%#{v}%" } ]
+        when :icontains  then    [ "LIKE",    arg_format,        values.map{ |v| "%#{v}%" } ]
         else
           case operand
           when Condition then    [ op,        oprand.full_name,  [] ] 
@@ -510,6 +519,7 @@ module Squirrel
           end
         end		
         sql = "#{full_name} #{op} #{arg_format}"
+        sql = "UPPER(#{full_name}) #{op} UPPER(#{arg_format})" if operator == :icontains
         sql = "NOT (#{sql})" if @negative
         [ sql, *values ]
       end

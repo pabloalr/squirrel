@@ -44,6 +44,12 @@ class SquirrelTest < Test::Unit::TestCase
 
     posts = Post.find(:all) { title =~ "%Rails%" }
     assert_equal 2, posts.length
+
+    posts = Post.find(:all) { title.contains? "Rails" }
+    assert_equal 2, posts.length
+
+    posts = Post.find(:all) { title.icontains? "rails" }
+    assert_equal 2, posts.length
   end
 
 	def test_simple_conditions_generate_the_proper_query_fragments
@@ -56,6 +62,8 @@ class SquirrelTest < Test::Unit::TestCase
 			zip > "02143"
 			id < 4
 			id <=> (1..3)
+      city.icontains? "cam"
+      city.contains? "Cam"
 		end
 		conditions = query.conditions.conditions
 		[
@@ -66,7 +74,9 @@ class SquirrelTest < Test::Unit::TestCase
 			["addresses.city REGEXP ?", "bridge"],
 			["addresses.zip > ?", "02143"],
 			["addresses.id < ?", 4],
-			["addresses.id BETWEEN ? AND ?", 1, 3]
+			["addresses.id BETWEEN ? AND ?", 1, 3],
+      ["UPPER(addresses.city) LIKE UPPER(?)", "%cam%"],
+      ["addresses.city LIKE ?", "%Cam%"]
 		].each_with_index do |ary, i|
 			assert_equal conditions[i].to_find_conditions, ary
 		end
